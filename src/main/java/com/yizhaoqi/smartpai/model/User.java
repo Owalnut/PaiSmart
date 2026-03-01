@@ -1,40 +1,33 @@
 package com.yizhaoqi.smartpai.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Data
-@Entity
-@Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = "username"))
+@TableName("users")
 public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false, unique = true)
     private String username;
-
-    @Column(nullable = false)
     private String password;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private Role role;
 
-    @Column(name = "org_tags")
-    private String orgTags; // 用户所属组织标签，多个用逗号分隔
+    /**
+     * 用户所属组织标签，多个用逗号分隔
+     */
+    private String orgTags;
 
-    @Column(name = "primary_org")
-    private String primaryOrg; // 用户主组织标签
+    /**
+     * 用户主组织标签
+     */
+    private String primaryOrg;
 
-    @CreationTimestamp
     private LocalDateTime createdAt;
-
-    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     public enum Role {

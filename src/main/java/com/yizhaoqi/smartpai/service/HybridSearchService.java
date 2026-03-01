@@ -7,8 +7,10 @@ import com.yizhaoqi.smartpai.entity.EsDocument;
 import com.yizhaoqi.smartpai.entity.SearchResult;
 import com.yizhaoqi.smartpai.model.User;
 import com.yizhaoqi.smartpai.exception.CustomException;
-import com.yizhaoqi.smartpai.repository.UserRepository;
-import com.yizhaoqi.smartpai.repository.FileUploadRepository;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
+
+import java.util.Optional;
 import com.yizhaoqi.smartpai.model.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,14 +44,16 @@ public class HybridSearchService {
     @Autowired
     private UserService userService;
 
+    /** 按用户名/ID 查用户，用于权限与用户信息 */
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     @Autowired
     private OrgTagCacheService orgTagCacheService;
 
+    /** 按 fileMd5 批量查文件信息，用于结果中填充文件名 */
     @Autowired
-    private FileUploadRepository fileUploadRepository;
+    private FileUploadMapper fileUploadMapper;
 
     /**
      * 使用文本匹配和向量相似度进行混合搜索，支持权限过滤
@@ -401,13 +405,13 @@ public class HybridSearchService {
             try {
                 Long userIdLong = Long.parseLong(userId);
                 logger.debug("解析用户ID为Long: {}", userIdLong);
-                user = userRepository.findById(userIdLong)
+                user = Optional.ofNullable(userMapper.selectById(userIdLong))
                     .orElseThrow(() -> new CustomException("User not found with ID: " + userId, HttpStatus.NOT_FOUND));
                 logger.debug("通过ID找到用户: {}", user.getUsername());
             } catch (NumberFormatException e) {
                 // 如果userId不是数字格式，则假设它就是username
                 logger.debug("用户ID不是数字格式，作为用户名查找: {}", userId);
-                user = userRepository.findByUsername(userId)
+                user = Optional.ofNullable(userMapper.selectByUsername(userId))
                     .orElseThrow(() -> new CustomException("User not found: " + userId, HttpStatus.NOT_FOUND));
                 logger.debug("通过用户名找到用户: {}", user.getUsername());
             }
@@ -433,14 +437,14 @@ public class HybridSearchService {
             try {
                 Long userIdLong = Long.parseLong(userId);
                 logger.debug("解析用户ID为Long: {}", userIdLong);
-                user = userRepository.findById(userIdLong)
+                user = Optional.ofNullable(userMapper.selectById(userIdLong))
                     .orElseThrow(() -> new CustomException("User not found with ID: " + userId, HttpStatus.NOT_FOUND));
                 logger.debug("通过ID找到用户: {}", user.getUsername());
                 return userIdLong.toString(); // 如果输入已经是数字ID，直接返回
             } catch (NumberFormatException e) {
                 // 如果userId不是数字格式，则假设它就是username
                 logger.debug("用户ID不是数字格式，作为用户名查找: {}", userId);
-                user = userRepository.findByUsername(userId)
+                user = Optional.ofNullable(userMapper.selectByUsername(userId))
                     .orElseThrow(() -> new CustomException("User not found: " + userId, HttpStatus.NOT_FOUND));
                 logger.debug("通过用户名找到用户: {}, ID: {}", user.getUsername(), user.getId());
                 return user.getId().toString(); // 返回用户的数据库ID
@@ -460,7 +464,7 @@ public class HybridSearchService {
             Set<String> md5Set = results.stream()
                     .map(SearchResult::getFileMd5)
                     .collect(Collectors.toSet());
-            List<FileUpload> uploads = fileUploadRepository.findByFileMd5In(new java.util.ArrayList<>(md5Set));
+            List<FileUpload> uploads = fileUploadMapper.selectByFileMd5In(new java.util.ArrayList<>(md5Set));
             Map<String, String> md5ToName = uploads.stream()
                     .collect(Collectors.toMap(FileUpload::getFileMd5, FileUpload::getFileName));
             // 填充文件名

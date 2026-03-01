@@ -1,33 +1,42 @@
 package com.yizhaoqi.smartpai.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * 对话记录实体（MyBatis-Plus）
+ * user_id 存用户主键，不再关联 User 对象
+ */
 @Data
-@Entity
-@Table(name = "conversations", indexes = {
-        @Index(name = "idx_user_id", columnList = "user_id"),
-        @Index(name = "idx_timestamp", columnList = "timestamp")
-})
+@TableName("conversations")
 public class Conversation {
+    /**
+     * 对话记录唯一标识
+     */
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // 对话记录唯一标识
+    /**
+     * 关联用户，存 users.id
+     */
+    private Long userId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user; // 关联用户
+    /**
+     * 用户提问内容
+     */
+    private String question;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String question; // 用户提问内容
+    /**
+     * 系统回答内容
+     */
+    private String answer;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String answer; // 系统回答内容
-
-    @CreationTimestamp
-    private LocalDateTime timestamp; // 对话时间戳
+    /**
+     * 对话时间戳
+     */
+    private LocalDateTime timestamp;
 }

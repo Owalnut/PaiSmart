@@ -4,7 +4,7 @@ import com.yizhaoqi.smartpai.client.EmbeddingClient;
 import com.yizhaoqi.smartpai.model.DocumentVector;
 import com.yizhaoqi.smartpai.entity.EsDocument;
 import com.yizhaoqi.smartpai.entity.TextChunk;
-import com.yizhaoqi.smartpai.repository.DocumentVectorRepository;
+import com.yizhaoqi.smartpai.mapper.DocumentVectorMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +14,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
-// 向量化服务类
+/**
+ * 向量化服务类
+ * 从 document_vectors 表读取分块文本，调用 Embedding 生成向量并写入 Elasticsearch
+ */
 @Service
 public class VectorizationService {
 
@@ -26,8 +29,9 @@ public class VectorizationService {
     @Autowired
     private ElasticsearchService elasticsearchService;
 
+    /** 文档分块表 Mapper（MyBatis-Plus），用于查询分块内容 */
     @Autowired
-    private DocumentVectorRepository documentVectorRepository;
+    private DocumentVectorMapper documentVectorMapper;
 
     /**
      * 执行向量化操作
@@ -86,10 +90,10 @@ public class VectorizationService {
      * @param fileMd5 文件指纹
      * @return 分块内容列表
      */
-    // 从数据库获取分块内容
+    /** 从数据库获取分块内容 */
     private List<TextChunk> fetchTextChunks(String fileMd5) {
-        // 调用 Repository 查询数据
-        List<DocumentVector> vectors = documentVectorRepository.findByFileMd5(fileMd5);
+        // 调用 Mapper 查询 document_vectors 表
+        List<DocumentVector> vectors = documentVectorMapper.selectByFileMd5(fileMd5);
 
         // 转换为 TextChunk 列表
         return vectors.stream()

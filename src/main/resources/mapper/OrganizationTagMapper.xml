@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yizhaoqi.smartpai.mapper.OrganizationTagMapper">
+
+    <select id="selectByTagId" resultType="com.yizhaoqi.smartpai.model.OrganizationTag">
+        SELECT * FROM organization_tags WHERE tag_id = #{tagId} LIMIT 1
+    </select>
+
+    <select id="selectByParentTag" resultType="com.yizhaoqi.smartpai.model.OrganizationTag">
+        SELECT * FROM organization_tags
+        <where>
+            <if test="parentTag == null">parent_tag IS NULL</if>
+            <if test="parentTag != null">parent_tag = #{parentTag}</if>
+        </where>
+    </select>
+
+    <select id="countByTagId" resultType="int">
+        SELECT COUNT(*) FROM organization_tags WHERE tag_id = #{tagId}
+    </select>
+</mapper>

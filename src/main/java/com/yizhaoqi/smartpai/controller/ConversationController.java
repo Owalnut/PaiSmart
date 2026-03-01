@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.yizhaoqi.smartpai.exception.CustomException;
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+
+import java.util.Optional;
 import com.yizhaoqi.smartpai.utils.JwtUtils;
 import com.yizhaoqi.smartpai.utils.LogUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,19 +24,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 用户对话历史接口
+ * 查询对话记录（含 Redis/DB），依赖 UserMapper 解析当前用户
+ */
 @RestController
 @RequestMapping("/api/v1/users/conversation")
 public class ConversationController {
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
-    
+
+    /** 按用户名查用户（如获取当前用户 id） */
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     @Autowired
     private JwtUtils jwtUtils;
-    
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -61,7 +68,7 @@ public class ConversationController {
             LogUtils.logBusiness("GET_CONVERSATIONS", username, "开始查询用户对话历史");
             
             // 获取用户信息
-            User user = userRepository.findByUsername(username)
+            User user = Optional.ofNullable(userMapper.selectByUsername(username))
                     .orElseThrow(() -> new CustomException("用户不存在", HttpStatus.NOT_FOUND));
             
             // 尝试不同格式的用户ID来查询Redis

@@ -1,7 +1,9 @@
 package com.yizhaoqi.smartpai.service;
 
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,16 +22,13 @@ import java.util.Collections;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
+    /** 用于从数据库按用户名查询用户（MyBatis-Plus） */
     @Autowired
-    private UserRepository userRepository; // 用于访问用户数据
+    private UserMapper userMapper;
 
-    /**
-     * 根据用户名加载用户详细信息。
-     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 从数据库中查找用户
-        User user = userRepository.findByUsername(username)
+        User user = Optional.ofNullable(userMapper.selectByUsername(username))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         // 返回 Spring Security 所需的 UserDetails 对象

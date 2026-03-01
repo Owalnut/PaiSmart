@@ -2,9 +2,11 @@ package com.yizhaoqi.smartpai.service;
 
 import com.yizhaoqi.smartpai.model.FileUpload;
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.DocumentVectorRepository;
-import com.yizhaoqi.smartpai.repository.FileUploadRepository;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.DocumentVectorMapper;
+import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+
+import java.util.Optional;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
@@ -29,10 +31,10 @@ public class DocumentService {
     private static final Logger logger = LoggerFactory.getLogger(DocumentService.class);
 
     @Autowired
-    private FileUploadRepository fileUploadRepository;
+    private FileUploadMapper fileUploadMapper;
 
     @Autowired
-    private DocumentVectorRepository documentVectorRepository;
+    private DocumentVectorMapper documentVectorMapper;
 
     @Autowired
     private MinioClient minioClient;
@@ -44,7 +46,7 @@ public class DocumentService {
     private OrgTagCacheService orgTagCacheService;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     /**
      * 删除文档及其相关数据
@@ -62,7 +64,7 @@ public class DocumentService {
         
         try {
             // 获取文件信息以获取文件名
-            FileUpload fileUpload = fileUploadRepository.findByFileMd5(fileMd5)
+            FileUpload fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5(fileMd5))
                     .orElseThrow(() -> new RuntimeException("文件不存在"));
             
             // 1. 删除Elasticsearch中的数据
@@ -91,7 +93,7 @@ public class DocumentService {
             
             // 3. 删除DocumentVector记录
             try {
-                documentVectorRepository.deleteByFileMd5(fileMd5);
+                documentVectorMapper.deleteByFileMd5(fileMd5);
                 logger.info("成功删除文档向量记录: {}", fileMd5);
             } catch (Exception e) {
                 logger.error("删除文档向量记录时出错: {}", fileMd5, e);
@@ -99,7 +101,7 @@ public class DocumentService {
             }
             
             // 4. 删除FileUpload记录
-            fileUploadRepository.deleteByFileMd5(fileMd5);
+            fileUploadMapper.deleteByFileMd5(fileMd5);
             logger.info("成功删除文件上传记录: {}", fileMd5);
             
             logger.info("文档删除完成: {}", fileMd5);
@@ -122,7 +124,7 @@ public class DocumentService {
         
         try {
             // 获取用户有效的组织标签（包含层级关系）
-            User user = userRepository.findById(Long.parseLong(userId))
+            User user = Optional.ofNullable(userMapper.selectById(Long.parseLong(userId)))
                 .orElseThrow(() -> new RuntimeException("用户不存在: " + userId));
             
             List<String> userEffectiveTags = orgTagCacheService.getUserEffectiveOrgTags(user.getUsername());
@@ -132,11 +134,11 @@ public class DocumentService {
             List<FileUpload> files;
             if (userEffectiveTags.isEmpty()) {
                 // 如果用户没有任何组织标签，只返回自己的文件和公开文件
-                files = fileUploadRepository.findByUserIdOrIsPublicTrue(userId);
+                files = fileUploadMapper.selectByUserIdOrIsPublicTrue(userId);
                 logger.debug("用户无组织标签，仅返回个人和公开文件");
             } else {
                 // 查询用户可访问的所有文件（考虑层级标签）
-                files = fileUploadRepository.findAccessibleFilesWithTags(userId, userEffectiveTags);
+                files = fileUploadMapper.selectAccessibleFilesWithTags(userId, userEffectiveTags);
                 logger.debug("使用有效组织标签查询文件");
             }
             
@@ -158,7 +160,7 @@ public class DocumentService {
         logger.info("获取用户上传的文件列表: userId={}", userId);
         
         try {
-            List<FileUpload> files = fileUploadRepository.findByUserId(userId);
+            List<FileUpload> files = fileUploadMapper.selectByUserId(userId);
             logger.info("成功获取用户上传的文件列表: userId={}, fileCount={}", userId, files.size());
             return files;
         } catch (Exception e) {
@@ -178,7 +180,7 @@ public class DocumentService {
         
         try {
             // 从数据库获取文件信息
-            FileUpload fileUpload = fileUploadRepository.findByFileMd5(fileMd5)
+            FileUpload fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5(fileMd5))
                     .orElseThrow(() -> new RuntimeException("文件不存在: " + fileMd5));
             
             // MinIO中的对象路径格式: merged/文件名

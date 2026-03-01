@@ -1,7 +1,7 @@
 package com.yizhaoqi.smartpai.config;
 
 import com.yizhaoqi.smartpai.model.FileUpload;
-import com.yizhaoqi.smartpai.repository.FileUploadRepository;
+import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
 import com.yizhaoqi.smartpai.utils.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -44,9 +44,10 @@ public class OrgTagAuthorizationFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtUtils jwtUtils;
-    
+
+    /** 按 fileMd5 查文件记录，用于基于资源的权限校验 */
     @Autowired
-    private FileUploadRepository fileUploadRepository;
+    private FileUploadMapper fileUploadMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -256,7 +257,7 @@ public class OrgTagAuthorizationFilter extends OncePerRequestFilter {
         logger.debug("尝试获取资源信息，资源ID: {}", resourceId);
         
         // 尝试从文件上传表中获取资源信息
-        Optional<FileUpload> fileUpload = fileUploadRepository.findByFileMd5(resourceId);
+        Optional<FileUpload> fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5(resourceId));
         if (fileUpload.isPresent()) {
             FileUpload file = fileUpload.get();
             ResourceInfo info = new ResourceInfo(

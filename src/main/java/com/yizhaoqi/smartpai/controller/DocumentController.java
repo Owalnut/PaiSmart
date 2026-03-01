@@ -2,8 +2,8 @@ package com.yizhaoqi.smartpai.controller;
 
 import com.yizhaoqi.smartpai.model.FileUpload;
 import com.yizhaoqi.smartpai.model.OrganizationTag;
-import com.yizhaoqi.smartpai.repository.FileUploadRepository;
-import com.yizhaoqi.smartpai.repository.OrganizationTagRepository;
+import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
+import com.yizhaoqi.smartpai.mapper.OrganizationTagMapper;
 import com.yizhaoqi.smartpai.service.DocumentService;
 import com.yizhaoqi.smartpai.utils.LogUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,12 +33,14 @@ public class DocumentController {
 
     @Autowired
     private DocumentService documentService;
-    
+
+    /** 按 fileMd5、userId 校验文件归属与权限 */
     @Autowired
-    private FileUploadRepository fileUploadRepository;
-    
+    private FileUploadMapper fileUploadMapper;
+
+    /** 按 tagId 查询组织标签（如列表展示） */
     @Autowired
-    private OrganizationTagRepository organizationTagRepository;
+    private OrganizationTagMapper organizationTagMapper;
 
     /**
      * 删除文档及其相关数据
@@ -59,7 +61,7 @@ public class DocumentController {
             LogUtils.logBusiness("DELETE_DOCUMENT", userId, "接收到删除文档请求: fileMd5=%s, role=%s", fileMd5, role);
             
             // 获取文件信息
-            Optional<FileUpload> fileOpt = fileUploadRepository.findByFileMd5AndUserId(fileMd5, userId);
+            Optional<FileUpload> fileOpt = Optional.ofNullable(fileUploadMapper.selectByFileMd5AndUserId(fileMd5, userId));
             if (fileOpt.isEmpty()) {
                 LogUtils.logUserOperation(userId, "DELETE_DOCUMENT", fileMd5, "FAILED_NOT_FOUND");
                 monitor.end("删除失败：文档不存在");
@@ -277,7 +279,7 @@ public class DocumentController {
         }
         
         try {
-            Optional<OrganizationTag> tagOpt = organizationTagRepository.findByTagId(tagId);
+            Optional<OrganizationTag> tagOpt = Optional.ofNullable(organizationTagMapper.selectByTagId(tagId));
             if (tagOpt.isPresent()) {
                 return tagOpt.get().getName();
             } else {

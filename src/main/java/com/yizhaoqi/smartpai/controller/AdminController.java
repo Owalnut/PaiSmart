@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yizhaoqi.smartpai.exception.CustomException;
 import com.yizhaoqi.smartpai.model.OrganizationTag;
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.OrganizationTagRepository;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.OrganizationTagMapper;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+
+import java.util.Optional;
 import com.yizhaoqi.smartpai.service.UserService;
 import com.yizhaoqi.smartpai.utils.JwtUtils;
 import com.yizhaoqi.smartpai.utils.LogUtils;
@@ -19,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 管理员控制器，提供管理知识库、查看系统状态和监控用户活动的接口
@@ -29,7 +30,7 @@ import java.util.stream.Collectors;
 public class AdminController {
 
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -38,7 +39,7 @@ public class AdminController {
     private UserService userService;
     
     @Autowired
-    private OrganizationTagRepository organizationTagRepository;
+    private OrganizationTagMapper organizationTagMapper;
     
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
@@ -59,7 +60,7 @@ public class AdminController {
             
             LogUtils.logBusiness("ADMIN_GET_ALL_USERS", adminUsername, "管理员开始获取所有用户列表");
             
-            List<User> users = userRepository.findAll();
+            List<User> users = userMapper.selectList(null);
             // 移除敏感信息
             users.forEach(user -> user.setPassword(null));
             
@@ -260,7 +261,7 @@ public class AdminController {
         validateAdmin(adminUsername);
         
         try {
-            List<OrganizationTag> tags = organizationTagRepository.findAll();
+            List<OrganizationTag> tags = organizationTagMapper.selectList(null);
             return ResponseEntity.ok(Map.of("code", 200, "message", "获取组织标签成功", "data", tags));
         } catch (Exception e) {
             LogUtils.logBusinessError("ADMIN_GET_ORG_TAGS", adminUsername, "获取组织标签失败", e);
@@ -436,7 +437,7 @@ public class AdminController {
             if (userid != null && !userid.isEmpty()) {
                 try {
                     Long userIdLong = Long.parseLong(userid);
-                    Optional<User> targetUser = userRepository.findById(userIdLong);
+                    Optional<User> targetUser = Optional.ofNullable(userMapper.selectById(userIdLong));
                     if (targetUser.isPresent()) {
                         targetUsername = targetUser.get().getUsername();
                         LogUtils.logBusiness("ADMIN_GET_ALL_CONVERSATIONS", adminUsername, "找到目标用户: ID=%s, 用户名=%s", userid, targetUsername);
@@ -614,7 +615,7 @@ public class AdminController {
             throw new CustomException("Invalid token", HttpStatus.UNAUTHORIZED);
         }
         
-        User admin = userRepository.findByUsername(username)
+        User admin = Optional.ofNullable(userMapper.selectByUsername(username))
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
         
         if (admin.getRole() != User.Role.ADMIN) {

@@ -1,5 +1,6 @@
 package com.yizhaoqi.smartpai.test;
 
+import com.yizhaoqi.smartpai.mapper.TestEntityMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -9,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TransactionTestService {
 
     @Autowired
-    private TestEntityRepository testEntityRepository;
+    private TestEntityMapper testEntityMapper;
 
     @Lazy
     @Autowired
@@ -29,7 +30,7 @@ public class TransactionTestService {
     protected void protectedTransactionalMethod(String name) {
         TestEntity entity = new TestEntity();
         entity.setName(name);
-        testEntityRepository.save(entity);
+        testEntityMapper.insert(entity);
         throw new RuntimeException("Rollback test for protected method");
     }
 }

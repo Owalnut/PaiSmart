@@ -7,7 +7,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.yizhaoqi.smartpai.model.OrganizationTag;
-import com.yizhaoqi.smartpai.repository.OrganizationTagRepository;
+import com.yizhaoqi.smartpai.mapper.OrganizationTagMapper;
 
 import java.util.List;
 import java.util.Set;
@@ -31,12 +31,13 @@ public class OrgTagCacheService {
     private static final String USER_EFFECTIVE_TAGS_KEY_PREFIX = "user:effective_org_tags:";
     private static final long CACHE_TTL_HOURS = 24;
     private static final String DEFAULT_ORG_TAG = "DEFAULT";
-    
+
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-    
+
+    /** 组织标签表 Mapper（MyBatis-Plus），用于递归查父标签等 */
     @Autowired
-    private OrganizationTagRepository organizationTagRepository;
+    private OrganizationTagMapper organizationTagMapper;
     
     /**
      * 缓存用户的组织标签
@@ -190,7 +191,7 @@ public class OrgTagCacheService {
      */
     private void collectParentTags(String tagId, Set<String> result) {
         try {
-            OrganizationTag tag = organizationTagRepository.findByTagId(tagId).orElse(null);
+            OrganizationTag tag = organizationTagMapper.selectByTagId(tagId);
             if (tag != null && tag.getParentTag() != null && !tag.getParentTag().isEmpty()) {
                 String parentTagId = tag.getParentTag();
                 result.add(parentTagId);

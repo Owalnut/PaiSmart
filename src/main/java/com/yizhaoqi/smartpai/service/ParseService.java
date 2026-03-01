@@ -1,7 +1,7 @@
 package com.yizhaoqi.smartpai.service;
 
 import com.yizhaoqi.smartpai.model.DocumentVector;
-import com.yizhaoqi.smartpai.repository.DocumentVectorRepository;
+import com.yizhaoqi.smartpai.mapper.DocumentVectorMapper;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
@@ -17,20 +17,27 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 文件解析服务
+ * 使用 Apache Tika 解析各类文档，将文本分块并写入 document_vectors 表（通过 DocumentVectorMapper）
+ */
 @Service
 public class ParseService {
 
     private static final Logger logger = LoggerFactory.getLogger(ParseService.class);
 
     @Autowired
-    private DocumentVectorRepository documentVectorRepository;
+    private DocumentVectorMapper documentVectorMapper;
 
+    /** 每个文本块的最大字符数 */
     @Value("${file.parsing.chunk-size}")
     private int chunkSize;
-    
+
+    /** 8KB 缓冲区 */
     @Value("${file.parsing.buffer-size:8192}")
     private int bufferSize;
-    
+
+    /** 内存使用阈值，超过则拒绝解析 */
     @Value("${file.parsing.max-memory-threshold:0.8}")
     private double maxMemoryThreshold;
 
@@ -377,7 +384,7 @@ public class ParseService {
             vector.setUserId(userId);
             vector.setOrgTag(orgTag);
             vector.setPublic(isPublic);
-            documentVectorRepository.save(vector);
+            documentVectorMapper.insert(vector);
         }
     }
 
@@ -395,12 +402,7 @@ public class ParseService {
             vector.setOrgTag(orgTag);
             vector.setPublic(isPublic);
 
-            // 添加chunk关系信息
-            // vector.setPreviousChunkId(i > 0 ? i : null);
-            // vector.setNextChunkId(i < chunks.size() - 1 ? i + 2 : null);
-            // vector.setTotalChunks(chunks.size());
-
-            documentVectorRepository.save(vector);
+            documentVectorMapper.insert(vector);
         }
     }
 

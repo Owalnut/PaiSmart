@@ -1,7 +1,7 @@
 package com.yizhaoqi.smartpai.config;
 
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
 import com.yizhaoqi.smartpai.utils.PasswordUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +11,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -22,8 +23,9 @@ import java.util.Optional;
 public class AdminUserInitializer implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(AdminUserInitializer.class);
 
+    /** 用户表 Mapper，用于查询/插入管理员账号 */
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     @Value("${admin.username:admin}")
     private String adminUsername;
@@ -40,7 +42,7 @@ public class AdminUserInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         logger.info("检查管理员账号是否存在: {}", adminUsername);
-        Optional<User> existingAdmin = userRepository.findByUsername(adminUsername);
+        Optional<User> existingAdmin = Optional.ofNullable(userMapper.selectByUsername(adminUsername));
 
         if (existingAdmin.isPresent()) {
             logger.info("管理员账号 '{}' 已存在，跳过创建步骤", adminUsername);
@@ -55,8 +57,10 @@ public class AdminUserInitializer implements CommandLineRunner {
             adminUser.setRole(User.Role.ADMIN);
             adminUser.setPrimaryOrg(adminPrimaryOrg);
             adminUser.setOrgTags(adminOrgTags);
+            adminUser.setCreatedAt(LocalDateTime.now());
+            adminUser.setUpdatedAt(LocalDateTime.now());
 
-            userRepository.save(adminUser);
+            userMapper.insert(adminUser);
             logger.info("管理员账号 '{}' 创建成功", adminUsername);
         } catch (Exception e) {
             logger.error("创建管理员账号失败: {}", e.getMessage(), e);

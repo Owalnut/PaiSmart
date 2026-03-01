@@ -3,7 +3,7 @@ package com.yizhaoqi.smartpai.controller;
 import com.yizhaoqi.smartpai.config.KafkaConfig;
 import com.yizhaoqi.smartpai.model.FileProcessingTask;
 import com.yizhaoqi.smartpai.model.FileUpload;
-import com.yizhaoqi.smartpai.repository.FileUploadRepository;
+import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
 import com.yizhaoqi.smartpai.service.FileTypeValidationService;
 import com.yizhaoqi.smartpai.service.UploadService;
 import com.yizhaoqi.smartpai.service.UserService;
@@ -23,6 +23,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * 文件分片上传与合并接口
+ * 提供分片上传、合并、上传状态查询等，依赖 UploadService、FileUploadMapper 等
+ */
 @RestController
 @RequestMapping("/api/v1/upload")
 public class UploadController {
@@ -38,10 +42,11 @@ public class UploadController {
 
     @Autowired
     private UserService userService;
-    
+
+    /** 用于按 fileMd5 等查询文件信息（如合并时校验、状态接口） */
     @Autowired
-    private FileUploadRepository fileUploadRepository;
-    
+    private FileUploadMapper fileUploadMapper;
+
     @Autowired
     private FileTypeValidationService fileTypeValidationService;
 
@@ -172,7 +177,7 @@ public class UploadController {
             String fileName = "unknown";
             String fileType = "unknown";
             try {
-                Optional<FileUpload> fileUpload = fileUploadRepository.findByFileMd5(fileMd5);
+                Optional<FileUpload> fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5(fileMd5));
                 if (fileUpload.isPresent()) {
                     fileName = fileUpload.get().getFileName();
                     fileType = getFileType(fileName);
@@ -237,7 +242,7 @@ public class UploadController {
             
             // 检查文件完整性和权限
             LogUtils.logBusiness("MERGE_FILE", userId, "检查文件记录和权限: fileMd5=%s, fileName=%s", request.fileMd5(), request.fileName());
-            FileUpload fileUpload = fileUploadRepository.findByFileMd5AndUserId(request.fileMd5(), userId)
+            FileUpload fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5AndUserId(request.fileMd5(), userId))
                     .orElseThrow(() -> {
                         LogUtils.logUserOperation(userId, "MERGE_FILE", request.fileMd5(), "FAILED_FILE_NOT_FOUND");
                         return new RuntimeException("文件记录不存在");

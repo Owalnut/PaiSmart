@@ -1,47 +1,37 @@
 package com.yizhaoqi.smartpai.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 /**
- * 文档向量实体类
+ * 文档向量实体类（MyBatis-Plus）
  * 用于存储文本分块和相关元数据
  */
 @Data
-@Entity
-@Table(name = "document_vectors")
+@TableName("document_vectors")
 public class DocumentVector {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(value = "vector_id", type = IdType.AUTO)
     private Long vectorId;
 
-    @Column(nullable = false, length = 32)
     private String fileMd5;
-
-    @Column(nullable = false)
     private Integer chunkId;
-
-    @Lob
     private String textContent;
-
-    @Column(length = 32)
     private String modelVersion;
-    
+
     /**
      * 上传用户ID
      */
-    @Column(nullable = false, name = "user_id", length = 64)
     private String userId;
-    
+
     /**
      * 文件所属组织标签
      */
-    @Column(name = "org_tag", length = 50)
     private String orgTag;
-    
+
     /**
      * 文件是否公开
      */
-    @Column(name = "is_public", nullable = false)
     private boolean isPublic = false;
 }

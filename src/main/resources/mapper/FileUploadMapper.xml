@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yizhaoqi.smartpai.mapper.FileUploadMapper">
+
+    <select id="selectByFileMd5" resultType="com.yizhaoqi.smartpai.model.FileUpload">
+        SELECT * FROM file_upload WHERE file_md5 = #{fileMd5} LIMIT 1
+    </select>
+
+    <select id="selectByFileMd5AndUserId" resultType="com.yizhaoqi.smartpai.model.FileUpload">
+        SELECT * FROM file_upload WHERE file_md5 = #{fileMd5} AND user_id = #{userId} LIMIT 1
+    </select>
+
+    <select id="countByFileMd5" resultType="long">
+        SELECT COUNT(*) FROM file_upload WHERE file_md5 = #{fileMd5}
+    </select>
+
+    <delete id="deleteByFileMd5">
+        DELETE FROM file_upload WHERE file_md5 = #{fileMd5}
+    </delete>
+
+    <delete id="deleteByFileMd5AndUserId">
+        DELETE FROM file_upload WHERE file_md5 = #{fileMd5} AND user_id = #{userId}
+    </delete>
+
+    <select id="selectByUserIdOrIsPublicTrue" resultType="com.yizhaoqi.smartpai.model.FileUpload">
+        SELECT * FROM file_upload WHERE user_id = #{userId} OR is_public = 1
+    </select>
+
+    <select id="selectAccessibleFilesWithTags" resultType="com.yizhaoqi.smartpai.model.FileUpload">
+        SELECT * FROM file_upload
+        WHERE user_id = #{userId} OR is_public = 1
+        <if test="orgTagList != null and orgTagList.size() > 0">
+            OR (org_tag IN
+            <foreach collection="orgTagList" item="tag" open="(" separator="," close=")">
+                #{tag}
+            </foreach>
+            AND is_public = 0)
+        </if>
+    </select>
+
+    <select id="selectByUserId" resultType="com.yizhaoqi.smartpai.model.FileUpload">
+        SELECT * FROM file_upload WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByFileMd5In" resultType="com.yizhaoqi.smartpai.model.FileUpload">
+        SELECT * FROM file_upload
+        <if test="md5List != null and md5List.size() > 0">
+            WHERE file_md5 IN
+            <foreach collection="md5List" item="md5" open="(" separator="," close=")">
+                #{md5}
+            </foreach>
+        </if>
+        <if test="md5List == null or md5List.size() == 0">
+            WHERE 1 = 0
+        </if>
+    </select>
+</mapper>

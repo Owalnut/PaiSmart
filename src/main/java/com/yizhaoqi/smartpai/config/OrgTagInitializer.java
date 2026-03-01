@@ -2,8 +2,8 @@ package com.yizhaoqi.smartpai.config;
 
 import com.yizhaoqi.smartpai.model.OrganizationTag;
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.OrganizationTagRepository;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.OrganizationTagMapper;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -22,7 +23,7 @@ import java.util.Optional;
 @Order(2) // 设置优先级，确保在管理员账号初始化器之后运行
 public class OrgTagInitializer implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(OrgTagInitializer.class);
-    
+
     private static final String DEFAULT_TAG = "default";
     private static final String DEFAULT_NAME = "默认组织";
     private static final String DEFAULT_DESCRIPTION = "系统默认组织标签，自动分配给所有新用户";
@@ -32,10 +33,11 @@ public class OrgTagInitializer implements CommandLineRunner {
     private static final String ADMIN_DESCRIPTION = "管理员专用组织标签，具有管理权限";
 
     @Autowired
-    private OrganizationTagRepository organizationTagRepository;
+    private OrganizationTagMapper organizationTagMapper;
 
+    /** 查询管理员用户，作为组织标签的创建者 */
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     @Value("${admin.username:admin}")
     private String adminUsername;
@@ -43,7 +45,7 @@ public class OrgTagInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // 查找管理员用户
-        User adminUser = userRepository.findByUsername(adminUsername)
+        User adminUser = Optional.ofNullable(userMapper.selectByUsername(adminUsername))
                 .orElseThrow(() -> new RuntimeException("管理员账号未找到，无法创建组织标签"));
 
         // 创建默认组织标签
@@ -60,14 +62,16 @@ public class OrgTagInitializer implements CommandLineRunner {
      */
     private void createOrganizationTagIfNotExists(String tagId, String name, String description, User creator) {
         logger.info("检查组织标签是否存在: {}", tagId);
-        if (!organizationTagRepository.existsByTagId(tagId)) {
+        if (organizationTagMapper.countByTagId(tagId) == 0) {
             logger.info("创建组织标签: {}", tagId);
             OrganizationTag tag = new OrganizationTag();
             tag.setTagId(tagId);
             tag.setName(name);
             tag.setDescription(description);
-            tag.setCreatedBy(creator);
-            organizationTagRepository.save(tag);
+            tag.setCreatedBy(creator.getId());
+            tag.setCreatedAt(LocalDateTime.now());
+            tag.setUpdatedAt(LocalDateTime.now());
+            organizationTagMapper.insert(tag);
             logger.info("组织标签 '{}' 创建成功", tagId);
         } else {
             logger.info("组织标签 '{}' 已存在，跳过创建步骤", tagId);

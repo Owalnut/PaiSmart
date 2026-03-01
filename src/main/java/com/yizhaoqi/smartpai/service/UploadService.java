@@ -2,8 +2,8 @@ package com.yizhaoqi.smartpai.service;
 
 import com.yizhaoqi.smartpai.model.ChunkInfo;
 import com.yizhaoqi.smartpai.model.FileUpload;
-import com.yizhaoqi.smartpai.repository.ChunkInfoRepository;
-import com.yizhaoqi.smartpai.repository.FileUploadRepository;
+import com.yizhaoqi.smartpai.mapper.ChunkInfoMapper;
+import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
 import io.minio.*;
 import io.minio.http.Method;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -23,29 +23,34 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+/**
+ * 文件分片上传服务
+ * 负责分片上传、合并、文件与分片信息持久化（FileUploadMapper、ChunkInfoMapper）及 MinIO/Redis 交互
+ */
 @Service
 public class UploadService {
 
     private static final Logger logger = LoggerFactory.getLogger(UploadService.class);
 
-    // 用于缓存已上传分片的信息
+    /** 用于缓存已上传分片的信息 */
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
-    // 用于与 MinIO 服务器交互
+    /** 用于与 MinIO 服务器交互 */
     @Autowired
     private MinioClient minioClient;
 
-    // 用于操作文件上传记录的 Repository
+    /** 文件上传记录表 Mapper（MyBatis-Plus） */
     @Autowired
-    private FileUploadRepository fileUploadRepository;
+    private FileUploadMapper fileUploadMapper;
 
-    // 用于操作分片信息的 Repository
+    /** 分片信息表 Mapper（MyBatis-Plus） */
     @Autowired
-    private ChunkInfoRepository chunkInfoRepository;
+    private ChunkInfoMapper chunkInfoMapper;
 
+    /** MinIO 的公共访问地址 */
     @Autowired
-    private String minioPublicUrl; // 注入 MinIO 的公共访问地址
+    private String minioPublicUrl;
 
     /**
      * 上传文件分片
@@ -71,7 +76,7 @@ public class UploadService {
 
         try {
             // 检查 file_upload 表中是否存在该 file_md5
-            boolean fileExists = fileUploadRepository.findByFileMd5AndUserId(fileMd5, userId).isPresent();
+            boolean fileExists = Optional.ofNullable(fileUploadMapper.selectByFileMd5AndUserId(fileMd5, userId)).isPresent();
             logger.debug("检查文件记录是否存在 => fileMd5: {}, fileName: {}, fileType: {}, exists: {}", fileMd5, fileName, fileType, fileExists);
 
             if (!fileExists) {
@@ -86,8 +91,9 @@ public class UploadService {
                 fileUpload.setUserId(userId); // 设置上传用户ID
                 fileUpload.setOrgTag(orgTag); // 设置组织标签
                 fileUpload.setPublic(isPublic); // 设置是否公开
+                fileUpload.setCreatedAt(LocalDateTime.now());
                 try {
-                    fileUploadRepository.save(fileUpload);
+                    fileUploadMapper.insert(fileUpload);
                     logger.info("文件记录创建成功 => fileMd5: {}, fileName: {}, fileType: {}", fileMd5, fileName, fileType);
                 } catch (Exception e) {
                     logger.error("创建文件记录失败 => fileMd5: {}, fileName: {}, fileType: {}, 错误: {}", fileMd5, fileName, fileType, e.getMessage(), e);
@@ -103,7 +109,7 @@ public class UploadService {
             // 检查数据库中是否存在分片信息
             boolean chunkInfoExists = false;
             try {
-                List<ChunkInfo> chunkInfos = chunkInfoRepository.findByFileMd5OrderByChunkIndexAsc(fileMd5);
+                List<ChunkInfo> chunkInfos = chunkInfoMapper.selectByFileMd5OrderByChunkIndexAsc(fileMd5);
                 chunkInfoExists = chunkInfos.stream()
                         .anyMatch(chunk -> chunk.getChunkIndex() == chunkIndex);
                 logger.debug("检查数据库中分片信息 => fileMd5: {}, fileName: {}, chunkIndex: {}, exists: {}",
@@ -470,7 +476,7 @@ public class UploadService {
     public int getTotalChunks(String fileMd5) {
         logger.info("计算文件总分片数 => fileMd5: {}", fileMd5);
         try {
-            Optional<FileUpload> fileUpload = fileUploadRepository.findByFileMd5(fileMd5);
+            Optional<FileUpload> fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5(fileMd5));
 
             if (fileUpload.isEmpty()) {
                 logger.warn("文件记录不存在，无法计算分片数 => fileMd5: {}", fileMd5);
@@ -509,7 +515,7 @@ public class UploadService {
             chunkInfo.setChunkMd5(chunkMd5);
             chunkInfo.setStoragePath(storagePath);
 
-            chunkInfoRepository.save(chunkInfo);
+            chunkInfoMapper.insert(chunkInfo);
             logger.debug("分片信息已保存 => fileMd5: {}, chunkIndex: {}", fileMd5, chunkIndex);
         } catch (Exception e) {
             logger.error("保存分片信息失败 => fileMd5: {}, chunkIndex: {}, 错误: {}",
@@ -531,7 +537,7 @@ public class UploadService {
         try {
             // 查询所有分片信息
             logger.debug("查询分片信息 => fileMd5: {}, fileName: {}", fileMd5, fileName);
-            List<ChunkInfo> chunks = chunkInfoRepository.findByFileMd5OrderByChunkIndexAsc(fileMd5);
+            List<ChunkInfo> chunks = chunkInfoMapper.selectByFileMd5OrderByChunkIndexAsc(fileMd5);
             logger.info("查询到分片信息 => fileMd5: {}, fileName: {}, fileType: {}, 分片数量: {}", fileMd5, fileName, fileType, chunks.size());
 
             // 检查分片数量是否与预期一致
@@ -623,14 +629,14 @@ public class UploadService {
 
                 // 更新文件状态
                 logger.info("更新文件状态为已完成 => fileMd5: {}, fileName: {}, fileType: {}", fileMd5, fileName, fileType);
-                FileUpload fileUpload = fileUploadRepository.findByFileMd5(fileMd5)
+                FileUpload fileUpload = Optional.ofNullable(fileUploadMapper.selectByFileMd5(fileMd5))
                         .orElseThrow(() -> {
                             logger.error("更新文件状态失败，文件记录不存在 => fileMd5: {}, fileName: {}", fileMd5, fileName);
                             return new RuntimeException("文件记录不存在: " + fileMd5);
                         });
                 fileUpload.setStatus(1); // 已完成
                 fileUpload.setMergedAt(LocalDateTime.now());
-                fileUploadRepository.save(fileUpload);
+                fileUploadMapper.updateById(fileUpload);
                 logger.info("文件状态已更新为已完成 => fileMd5: {}, fileName: {}, fileType: {}", fileMd5, fileName, fileType);
 
                 // 生成预签名 URL（有效期为 1 小时）

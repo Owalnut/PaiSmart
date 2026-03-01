@@ -2,7 +2,9 @@ package com.yizhaoqi.smartpai.controller;
 
 import com.yizhaoqi.smartpai.exception.CustomException;
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+
+import java.util.Optional;
 import com.yizhaoqi.smartpai.service.UserService;
 import com.yizhaoqi.smartpai.utils.JwtUtils;
 import com.yizhaoqi.smartpai.utils.LogUtils;
@@ -17,6 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 用户相关接口：注册、登录、当前用户信息等
+ */
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
@@ -27,11 +32,14 @@ public class UserController {
     @Autowired
     private JwtUtils jwtUtils;
 
+    /** 按用户名查询用户，用于 /me 等 */
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
-    // 用户注册接口
-    // 接收用户请求体中的用户名和密码，并调用用户服务进行注册
+    /**
+     * 用户注册接口
+     * 接收用户请求体中的用户名和密码，并调用用户服务进行注册
+     */
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserRequest request) {
         LogUtils.PerformanceMonitor monitor = LogUtils.startPerformanceMonitor("USER_REGISTER");
@@ -59,8 +67,10 @@ public class UserController {
         }
     }
 
-    // 用户登录接口
-    // 验证用户身份并生成JWT令牌
+    /**
+     * 用户登录接口
+     * 验证用户身份并生成 JWT 令牌
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody UserRequest request) {
         LogUtils.PerformanceMonitor monitor = LogUtils.startPerformanceMonitor("USER_LOGIN");
@@ -97,7 +107,9 @@ public class UserController {
         }
     }
 
-    // 获取当前用户信息
+    /**
+     * 获取当前用户信息
+     */
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String token) {
         LogUtils.PerformanceMonitor monitor = LogUtils.startPerformanceMonitor("GET_USER_INFO");
@@ -110,7 +122,7 @@ public class UserController {
                 throw new CustomException("Invalid token", HttpStatus.UNAUTHORIZED);
             }
 
-            User user = userRepository.findByUsername(username)
+            User user = Optional.ofNullable(userMapper.selectByUsername(username))
                     .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
             // 手动构建返回对象，不包含 password 字段

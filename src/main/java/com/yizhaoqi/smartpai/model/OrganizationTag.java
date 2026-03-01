@@ -1,36 +1,51 @@
 package com.yizhaoqi.smartpai.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * 组织标签实体（MyBatis-Plus）
+ * created_by 存创建者用户主键，不再关联 User 对象
+ */
 @Data
-@Entity
-@Table(name = "organization_tags")
+@TableName("organization_tags")
 public class OrganizationTag {
-    @Id
-    @Column(name = "tag_id")
-    private String tagId; // 标签唯一标识
+    /**
+     * 标签唯一标识
+     */
+    @TableId("tag_id")
+    private String tagId;
 
-    @Column(nullable = false)
-    private String name; // 标签名称
+    /**
+     * 标签名称
+     */
+    private String name;
 
-    @Column(columnDefinition = "TEXT")
-    private String description; // 描述
+    /**
+     * 描述
+     */
+    private String description;
 
-    @Column(name = "parent_tag", length = 255)
-    private String parentTag; // 父标签ID
+    /**
+     * 父标签ID
+     */
+    private String parentTag;
 
-    @ManyToOne
-    @JoinColumn(name = "created_by", nullable = false)
-    private User createdBy; // 创建者ID
+    /**
+     * 创建者，关联 users.id
+     */
+    private Long createdBy;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt; // 创建时间
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt; // 更新时间
-} 
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updatedAt;
+}

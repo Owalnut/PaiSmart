@@ -9,7 +9,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.repository.UserRepository;
+import com.yizhaoqi.smartpai.mapper.UserMapper;
+
+import java.util.Optional;
 import com.yizhaoqi.smartpai.service.TokenCacheService;
 
 import javax.crypto.SecretKey;
@@ -19,21 +21,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * JWT 工具类
+ * 负责生成/校验 Access Token、Refresh Token，并与 Redis 缓存联动；生成时需从 UserMapper 读取用户信息
+ */
 @Component
 public class JwtUtils {
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
+    /** Base64 编码后的签名密钥 */
     @Value("${jwt.secret-key}")
-    private String secretKeyBase64; // 这里存的是 Base64 编码后的密钥
+    private String secretKeyBase64;
 
-    private static final long EXPIRATION_TIME = 3600000; // 1 hour (调整为1小时)
-    private static final long REFRESH_TOKEN_EXPIRATION_TIME = 604800000; // 7 days (refresh token有效期)
-    private static final long REFRESH_THRESHOLD = 300000; // 5分钟：当剩余时间少于5分钟时开始刷新
-    private static final long REFRESH_WINDOW = 600000; // 10分钟：token过期后的宽限期
-    
+    /** Access Token 有效期：1 小时 */
+    private static final long EXPIRATION_TIME = 3600000;
+    /** Refresh Token 有效期：7 天 */
+    private static final long REFRESH_TOKEN_EXPIRATION_TIME = 604800000;
+    /** 剩余时间少于 5 分钟时触发刷新 */
+    private static final long REFRESH_THRESHOLD = 300000;
+    /** Token 过期后宽限期：10 分钟 */
+    private static final long REFRESH_WINDOW = 600000;
+
     @Autowired
-    private UserRepository userRepository;
-    
+    private UserMapper userMapper;
+
     @Autowired
     private TokenCacheService tokenCacheService;
 
@@ -52,7 +63,7 @@ public class JwtUtils {
         SecretKey key = getSigningKey(); // 解析密钥
         
         // 获取用户信息
-        User user = userRepository.findByUsername(username)
+        User user = Optional.ofNullable(userMapper.selectByUsername(username))
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         // 生成唯一的tokenId
@@ -290,7 +301,7 @@ public class JwtUtils {
         SecretKey key = getSigningKey();
         
         // 获取用户信息
-        User user = userRepository.findByUsername(username)
+        User user = Optional.ofNullable(userMapper.selectByUsername(username))
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         // 生成唯一的refreshTokenId
