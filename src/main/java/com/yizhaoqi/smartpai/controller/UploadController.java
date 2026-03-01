@@ -1,6 +1,6 @@
 package com.yizhaoqi.smartpai.controller;
 
-import com.yizhaoqi.smartpai.config.KafkaConfig;
+import com.yizhaoqi.smartpai.config.RabbitMQConfig;
 import com.yizhaoqi.smartpai.model.FileProcessingTask;
 import com.yizhaoqi.smartpai.model.FileUpload;
 import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
@@ -11,7 +11,7 @@ import com.yizhaoqi.smartpai.utils.LogUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,10 +35,7 @@ public class UploadController {
     private UploadService uploadService;
 
     @Autowired
-    private KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
-    private KafkaConfig kafkaConfig;
+    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private UserService userService;
@@ -50,9 +47,9 @@ public class UploadController {
     @Autowired
     private FileTypeValidationService fileTypeValidationService;
 
-    public UploadController(UploadService uploadService, KafkaTemplate<String, Object> kafkaTemplate) {
+    public UploadController(UploadService uploadService, RabbitTemplate rabbitTemplate) {
         this.uploadService = uploadService;
-        this.kafkaTemplate = kafkaTemplate;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
@@ -295,12 +292,9 @@ public class UploadController {
                     fileUpload.isPublic()
             );
             
-            LogUtils.logBusiness("MERGE_FILE", userId, "发送文件处理任务到Kafka(事务): topic=%s, fileMd5=%s, fileName=%s", 
-                    kafkaConfig.getFileProcessingTopic(), request.fileMd5(), request.fileName());
-            kafkaTemplate.executeInTransaction(kt -> {
-                kt.send(kafkaConfig.getFileProcessingTopic(), task);
-                return true;
-            });
+            LogUtils.logBusiness("MERGE_FILE", userId, "发送文件处理任务到 RabbitMQ: exchange=%s, fileMd5=%s, fileName=%s",
+                    RabbitMQConfig.FILE_PROCESSING_EXCHANGE, request.fileMd5(), request.fileName());
+            rabbitTemplate.convertAndSend(RabbitMQConfig.FILE_PROCESSING_EXCHANGE, RabbitMQConfig.FILE_PROCESSING_ROUTING_KEY, task);
             LogUtils.logBusiness("MERGE_FILE", userId, "文件处理任务已发送: fileMd5=%s, fileName=%s, fileType=%s", request.fileMd5(), request.fileName(), fileType);
 
             // 构建数据对象
@@ -310,7 +304,7 @@ public class UploadController {
             // 构建统一响应格式
             Map<String, Object> response = new HashMap<>();
             response.put("code", 200);
-            response.put("message", "文件合并成功，任务已发送到 Kafka");
+            response.put("message", "文件合并成功，任务已发送到 RabbitMQ");
             response.put("data", data);
             
             LogUtils.logUserOperation(userId, "MERGE_FILE", request.fileMd5(), "SUCCESS");

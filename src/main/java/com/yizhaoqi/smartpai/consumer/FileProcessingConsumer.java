@@ -1,14 +1,13 @@
 package com.yizhaoqi.smartpai.consumer;
 
-import com.yizhaoqi.smartpai.config.KafkaConfig;
+import com.yizhaoqi.smartpai.config.RabbitMQConfig;
 import com.yizhaoqi.smartpai.model.FileProcessingTask;
 import com.yizhaoqi.smartpai.service.ParseService;
 import com.yizhaoqi.smartpai.service.VectorizationService;
 import io.minio.MinioClient;
 import io.minio.errors.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -23,16 +22,13 @@ public class FileProcessingConsumer {
 
     private final ParseService parseService;
     private final VectorizationService vectorizationService;
-    @Autowired
-    private KafkaConfig kafkaConfig;
-
 
     public FileProcessingConsumer(ParseService parseService, VectorizationService vectorizationService) {
         this.parseService = parseService;
         this.vectorizationService = vectorizationService;
     }
 
-    @KafkaListener(topics = "#{kafkaConfig.getFileProcessingTopic()}", groupId = "#{kafkaConfig.getFileProcessingGroupId()}")
+    @RabbitListener(queues = RabbitMQConfig.FILE_PROCESSING_QUEUE)
     public void processTask(FileProcessingTask task) {
         log.info("Received task: {}", task);
         log.info("文件权限信息: userId={}, orgTag={}, isPublic={}", 
@@ -63,7 +59,7 @@ public class FileProcessingConsumer {
             log.info("向量化完成，fileMd5: {}", task.getFileMd5());
         } catch (Exception e) {
             log.error("Error processing task: {}", task, e);
-            // 抛出异常让 Kafka 的 DefaultErrorHandler 捕获并触发重试 / 死信
+            // 抛出异常让 RabbitMQ 重试模板捕获，耗尽后进入死信队列
             throw new RuntimeException("Error processing task", e);
         } finally {
             // 确保关闭输入流

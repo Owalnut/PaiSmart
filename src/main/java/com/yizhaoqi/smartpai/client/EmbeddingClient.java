@@ -23,8 +23,8 @@ public class EmbeddingClient {
     @Value("${embedding.api.model}")
     private String modelId;
     
-    @Value("${embedding.api.batch-size:100}")
-    private int batchSize;
+    @Value("${embedding.api.batch-size:10}")
+    private int batchSize;  // text-embedding-v4 单次最多 10 条
 
     @Value("${embedding.api.dimension:2048}")
     private int dimension;
@@ -45,12 +45,19 @@ public class EmbeddingClient {
      */
     public List<float[]> embed(List<String> texts) {
         try {
-            logger.info("开始生成向量，文本数量: {}", texts.size());
-            
-            List<float[]> all = new ArrayList<>(texts.size());
-            for (int start = 0; start < texts.size(); start += batchSize) {
-                int end = Math.min(start + batchSize, texts.size());
-                List<String> sub = texts.subList(start, end);
+            // 空文本用占位符，避免 API 400，保持与 chunks 的 1:1 映射
+            List<String> safeTexts = texts.stream()
+                    .map(t -> (t == null || t.isBlank()) ? " " : t)
+                    .toList();
+            if (safeTexts.isEmpty()) {
+                throw new IllegalArgumentException("输入文本列表为空");
+            }
+            logger.info("开始生成向量，文本数量: {}", safeTexts.size());
+
+            List<float[]> all = new ArrayList<>(safeTexts.size());
+            for (int start = 0; start < safeTexts.size(); start += batchSize) {
+                int end = Math.min(start + batchSize, safeTexts.size());
+                List<String> sub = safeTexts.subList(start, end);
                 logger.debug("调用向量 API, 批次: {}-{} (size={})", start, end - 1, sub.size());
                 String response = callApiOnce(sub);
                 all.addAll(parseVectors(response));
@@ -58,6 +65,16 @@ public class EmbeddingClient {
             logger.info("成功生成向量，总数量: {}", all.size());
             return all;
         } catch (Exception e) {
+            WebClientResponseException wce = null;
+            if (e instanceof WebClientResponseException) {
+                wce = (WebClientResponseException) e;
+            } else if (e.getCause() instanceof WebClientResponseException) {
+                wce = (WebClientResponseException) e.getCause();
+            }
+            if (wce != null) {
+                logger.error("DashScope API 错误 status={} 响应体: {}",
+                        wce.getStatusCode(), wce.getResponseBodyAsString());
+            }
             logger.error("调用向量化 API 失败: {}", e.getMessage(), e);
             throw new RuntimeException("向量生成失败", e);
         }
@@ -67,8 +84,8 @@ public class EmbeddingClient {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", modelId);
         requestBody.put("input", batch);
-        requestBody.put("dimension", dimension);  // 直接在根级别设置dimension
-        requestBody.put("encoding_format", "float");  // 添加编码格式
+        requestBody.put("dimensions", dimension);  // DashScope 要求 dimensions（复数）
+        requestBody.put("encoding_format", "float");
 
         return webClient.post()
                 .uri("/embeddings")
@@ -76,7 +93,12 @@ public class EmbeddingClient {
                 .retrieve()
                 .bodyToMono(String.class)
                 .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(1))
-                        .filter(e -> e instanceof WebClientResponseException))
+                        .filter(e -> {
+                            if (e instanceof WebClientResponseException ex) {
+                                return ex.getStatusCode().is5xxServerError();
+                            }
+                            return true;  // 网络等错误可重试
+                        }))
                 .block(Duration.ofSeconds(30));
     }
 
