@@ -112,10 +112,8 @@ export const useKnowledgeBaseStore = defineStore(SetupStoreId.KnowledgeBase, () 
       uploadedChunks: [],
       progress: 0,
       status: UploadStatus.Pending,
-      orgTag: form.orgTag
+      orgTag: form.isPublic ? 'PUBLIC' : 'PERSONAL'
     };
-
-    newTask.orgTagName = form.orgTagName ?? null;
 
     // 将新的上传任务添加到任务队列中
     tasks.value.push(newTask);

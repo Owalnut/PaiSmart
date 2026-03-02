@@ -23,9 +23,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const userInfo: Api.Auth.UserInfo = reactive({
     id: 0,
     username: '',
-    role: 'USER',
-    orgTags: [],
-    primaryOrg: ''
+    role: 'USER'
   });
 
   const isAdmin = computed(() => userInfo.role === 'ADMIN');

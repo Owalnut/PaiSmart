@@ -53,16 +53,10 @@ const { columns, columnChecks, data, getData, loading } = useTable({
       render: row => renderStatus(row.status, row.progress)
     },
     {
-      key: 'orgTagName',
-      title: '组织标签',
-      width: 150,
-      ellipsis: { tooltip: true, lineClamp: 2 }
-    },
-    {
-      key: 'isPublic',
-      title: '是否公开',
+      key: 'visibility',
+      title: '可见性',
       width: 100,
-      render: row => (row.isPublic ? <NTag type="success">公开</NTag> : <NTag type="warning">私有</NTag>)
+      render: row => (row.visibility === '公开' ? <NTag type="success">公开</NTag> : <NTag type="warning">个人</NTag>)
     },
     {
       key: 'createdAt',

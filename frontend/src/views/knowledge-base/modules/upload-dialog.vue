@@ -8,8 +8,6 @@ defineOptions({
 const loading = ref(false);
 const visible = defineModel<boolean>('visible', { default: false });
 
-const authStore = useAuthStore();
-
 const { formRef, validate, restoreValidation } = useNaiveForm();
 const { defaultRequiredRule } = useFormRules();
 
@@ -17,15 +15,12 @@ const model = ref<Api.KnowledgeBase.Form>(createDefaultModel());
 
 function createDefaultModel(): Api.KnowledgeBase.Form {
   return {
-    orgTag: null,
-    orgTagName: '',
     isPublic: false,
     fileList: []
   };
 }
 
 const rules = ref<FormRules>({
-  orgTag: defaultRequiredRule,
   isPublic: defaultRequiredRule,
   fileList: defaultRequiredRule
 });
@@ -49,10 +44,6 @@ watch(visible, () => {
     restoreValidation();
   }
 });
-
-function onUpdate(option: unknown) {
-  if (option) model.value.orgTagName = (option as Api.OrgTag.Item).name;
-}
 </script>
 
 <template>
@@ -66,25 +57,11 @@ function onUpdate(option: unknown) {
     @positive-click="handleSubmit"
   >
     <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="100" mt-10>
-      <NFormItem v-if="authStore.isAdmin" label="组织标签" path="orgTag">
-        <OrgTagCascader v-model:value="model.orgTag" @change="onUpdate" />
-      </NFormItem>
-      <NFormItem v-else label="组织标签" path="orgTag">
-        <TheSelect
-          v-model:value="model.orgTag"
-          url="/users/org-tags"
-          key-field="orgTagDetails"
-          label-field="name"
-          value-field="tagId"
-          @change="onUpdate"
-        />
-      </NFormItem>
-
-      <NFormItem label="是否公开" path="isPublic">
+      <NFormItem label="可见性" path="isPublic">
         <NRadioGroup v-model:value="model.isPublic" name="radiogroup">
           <NSpace :size="16">
+            <NRadio :value="false">个人</NRadio>
             <NRadio :value="true">公开</NRadio>
-            <NRadio :value="false">私有</NRadio>
           </NSpace>
         </NRadioGroup>
       </NFormItem>

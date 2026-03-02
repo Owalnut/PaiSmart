@@ -1,7 +1,6 @@
 <script setup lang="tsx">
-import { NButton, NTag } from 'naive-ui';
+import { NTag } from 'naive-ui';
 import UserSearch from './modules/user-search.vue';
-import OrgTagSettingDialog from './modules/org-tag-setting-dialog.vue';
 
 const appStore = useAppStore();
 
@@ -13,7 +12,6 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
   apiFn,
   apiParams: {
     keyword: null,
-    orgTag: null,
     status: null
   },
   columns: () => [
@@ -28,70 +26,19 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
       minWidth: 100
     },
     {
-      key: 'orgTags',
-      title: '标签',
-      render: row => (
-        <div class="flex flex-wrap gap-2">
-          {row.orgTags.map(tag => (
-            <NTag key={tag.tagId} type={tag.tagId === row.primaryOrg ? 'primary' : 'default'}>
-              {tag.name}
-            </NTag>
-          ))}
-        </div>
-      )
-    },
-    {
-      key: 'email',
-      title: '邮箱',
-      width: 200
-    },
-    {
       key: 'status',
-      title: '是否启用',
+      title: '状态',
       width: 100,
-      render: row => <NTag type={row.status ? 'success' : 'warning'}>{row.status ? '已启用' : '已禁用'}</NTag>
+      render: row => <NTag type={row.status === 1 ? 'success' : 'warning'}>{row.status === 1 ? '已启用' : '已禁用'}</NTag>
     },
     {
-      key: 'createTime',
+      key: 'createdAt',
       title: '创建时间',
-      width: 200,
-      render: row => dayjs(row.createTime).format('YYYY-MM-DD HH:mm:ss')
-    },
-    {
-      key: 'lastLoginTime',
-      title: '最后登录时间',
-      width: 200,
-      render: row => dayjs(row.lastLoginTime).format('YYYY-MM-DD HH:mm:ss')
-    },
-    {
-      key: 'operate',
-      title: '操作',
-      width: 130,
-      render: row => (
-        <NButton type="primary" ghost size="small" onClick={() => handleOrgTag(row)}>
-          分配组织标签
-        </NButton>
-      )
+      width: 180,
+      render: row => row.createdAt ? dayjs(row.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'
     }
   ]
 });
-
-const visible = ref(false);
-const editingData = ref<Api.User.Item | null>(null);
-function handleOrgTag(row: Api.User.Item) {
-  editingData.value = row;
-  visible.value = true;
-}
-
-// async function setPrimaryOrgTag(userId: string, primaryOrg: string) {
-//   loading.value = true;
-//   const { error } = await request({ url: 'users/primary-org', method: 'PUT', data: { primaryOrg, userId } });
-//   if (!error) {
-//     window.$message?.success('操作成功');
-//     await getData();
-//   }
-//   loading.value = false;
-// }
 </script>
 
 <template>
@@ -108,15 +55,14 @@ function handleOrgTag(row: Api.User.Item) {
         :data="data"
         size="small"
         :flex-height="!appStore.isMobile"
-        :scroll-x="962"
+        :scroll-x="400"
         :loading="loading"
         remote
-        :row-key="row => row.id"
+        :row-key="(row: Api.User.Item) => row.userId"
         :pagination="mobilePagination"
         class="sm:h-full"
       />
     </NCard>
-    <OrgTagSettingDialog v-model:visible="visible" :row-data="editingData!" @submitted="getData" />
   </div>
 </template>
 

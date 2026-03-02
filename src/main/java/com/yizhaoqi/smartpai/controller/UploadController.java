@@ -60,7 +60,7 @@ public class UploadController {
      * @param totalSize 文件总大小
      * @param fileName 文件名
      * @param totalChunks 总分片数量
-     * @param orgTag 组织标签，如果未指定则使用用户的主组织标签
+     * @param orgTag 保留参数兼容，未指定时按 isPublic 设为 PERSONAL/PUBLIC
      * @param isPublic 是否公开，默认为false
      * @param file 分片文件对象
      * @return 返回包含已上传分片和上传进度的响应
@@ -105,28 +105,12 @@ public class UploadController {
             String fileType = getFileType(fileName);
             String contentType = file.getContentType();
             
-            LogUtils.logBusiness("UPLOAD_CHUNK", userId, "接收到分片上传请求: fileMd5=%s, chunkIndex=%d, fileName=%s, fileType=%s, contentType=%s, fileSize=%d, totalSize=%d, orgTag=%s, isPublic=%s", 
-                    fileMd5, chunkIndex, fileName, fileType, contentType, file.getSize(), totalSize, orgTag, isPublic);
-        
-            // 如果未指定组织标签，则获取用户的主组织标签
+            LogUtils.logBusiness("UPLOAD_CHUNK", userId, "接收到分片上传请求: fileMd5=%s, chunkIndex=%d, fileName=%s, isPublic=%s", 
+                    fileMd5, chunkIndex, fileName, isPublic);
             if (orgTag == null || orgTag.isEmpty()) {
-                try {
-                    LogUtils.logBusiness("UPLOAD_CHUNK", userId, "组织标签未指定，尝试获取用户主组织标签: fileName=%s", fileName);
-                    String primaryOrg = userService.getUserPrimaryOrg(userId);
-                    orgTag = primaryOrg;
-                        LogUtils.logBusiness("UPLOAD_CHUNK", userId, "成功获取用户主组织标签: fileName=%s, orgTag=%s", fileName, orgTag);
-                } catch (Exception e) {
-                    LogUtils.logBusinessError("UPLOAD_CHUNK", userId, "获取用户主组织标签失败: fileName=%s", e, fileName);
-                    monitor.end("获取主组织标签失败: " + e.getMessage());
-                    Map<String, Object> errorResponse = new HashMap<>();
-                    errorResponse.put("code", HttpStatus.INTERNAL_SERVER_ERROR.value());
-                    errorResponse.put("message", "获取用户主组织标签失败: " + e.getMessage());
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-                }
+                orgTag = isPublic ? "PUBLIC" : "PERSONAL";
             }
-        
             LogUtils.logFileOperation(userId, "UPLOAD_CHUNK", fileName, fileMd5, "PROCESSING");
-        
             uploadService.uploadChunk(fileMd5, chunkIndex, totalSize, fileName, file, orgTag, isPublic, userId);
             
             List<Integer> uploadedChunks = uploadService.getUploadedChunks(fileMd5);

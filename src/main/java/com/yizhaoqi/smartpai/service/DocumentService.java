@@ -43,9 +43,6 @@ public class DocumentService {
     private ElasticsearchService elasticsearchService;
 
     @Autowired
-    private OrgTagCacheService orgTagCacheService;
-
-    @Autowired
     private UserMapper userMapper;
 
     /**
@@ -112,36 +109,16 @@ public class DocumentService {
     }
     
     /**
-     * 获取用户可访问的所有文件列表
-     * 包括用户自己的文件、公开文件和用户所属组织的文件（支持层级权限）
+     * 获取用户可访问的所有文件列表（仅个人 + 公开）
+     * 包括用户自己的文件、公开文件
      *
      * @param userId 用户ID
-     * @param orgTags 用户所属的组织标签（逗号分隔的字符串，仅供兼容性使用）
      * @return 用户可访问的文件列表
      */
-    public List<FileUpload> getAccessibleFiles(String userId, String orgTags) {
+    public List<FileUpload> getAccessibleFiles(String userId) {
         logger.info("获取用户可访问文件列表: userId={}", userId);
-        
         try {
-            // 获取用户有效的组织标签（包含层级关系）
-            User user = Optional.ofNullable(userMapper.selectById(Long.parseLong(userId)))
-                .orElseThrow(() -> new RuntimeException("用户不存在: " + userId));
-            
-            List<String> userEffectiveTags = orgTagCacheService.getUserEffectiveOrgTags(user.getUsername());
-            logger.debug("用户有效组织标签: {}", userEffectiveTags);
-            
-            // 使用有效标签查询文件
-            List<FileUpload> files;
-            if (userEffectiveTags.isEmpty()) {
-                // 如果用户没有任何组织标签，只返回自己的文件和公开文件
-                files = fileUploadMapper.selectByUserIdOrIsPublicTrue(userId);
-                logger.debug("用户无组织标签，仅返回个人和公开文件");
-            } else {
-                // 查询用户可访问的所有文件（考虑层级标签）
-                files = fileUploadMapper.selectAccessibleFilesWithTags(userId, userEffectiveTags);
-                logger.debug("使用有效组织标签查询文件");
-            }
-            
+            List<FileUpload> files = fileUploadMapper.selectByUserIdOrIsPublicTrue(userId);
             logger.info("成功获取用户可访问文件列表: userId={}, fileCount={}", userId, files.size());
             return files;
         } catch (Exception e) {

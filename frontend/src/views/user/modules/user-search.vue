@@ -27,9 +27,6 @@ async function search() {
       <NFormItem label="关键词" path="keyword">
         <NInput v-model:value="model.keyword" placeholder="请输入关键词" clearable />
       </NFormItem>
-      <NFormItem label="组织标签" path="userGender">
-        <OrgTagCascader v-model:value="model.orgTag" clearable class="w-200px!" />
-      </NFormItem>
       <NFormItem label="启用状态" path="status">
         <NSelect
           v-model:value="model.status"

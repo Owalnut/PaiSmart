@@ -64,7 +64,7 @@ async function getList() {
             <TheSelect
               v-model:value="userId"
               url="admin/users/list"
-              :params="{ page: 1, size: 999, orgTag: store.userInfo.primaryOrg }"
+              :params="{ page: 1, size: 999 }"
               key-field="content"
               value-field="userId"
               label-field="username"

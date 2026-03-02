@@ -17,16 +17,6 @@ public class User {
     private String password;
     private Role role;
 
-    /**
-     * 用户所属组织标签，多个用逗号分隔
-     */
-    private String orgTags;
-
-    /**
-     * 用户主组织标签
-     */
-    private String primaryOrg;
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

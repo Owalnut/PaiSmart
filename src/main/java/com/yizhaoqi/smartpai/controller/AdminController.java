@@ -4,9 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yizhaoqi.smartpai.exception.CustomException;
-import com.yizhaoqi.smartpai.model.OrganizationTag;
 import com.yizhaoqi.smartpai.model.User;
-import com.yizhaoqi.smartpai.mapper.OrganizationTagMapper;
 import com.yizhaoqi.smartpai.mapper.UserMapper;
 
 import java.util.Optional;
@@ -37,9 +35,6 @@ public class AdminController {
 
     @Autowired
     private UserService userService;
-    
-    @Autowired
-    private OrganizationTagMapper organizationTagMapper;
     
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
@@ -223,179 +218,19 @@ public class AdminController {
     }
     
     /**
-     * 创建组织标签
-     */
-    @PostMapping("/org-tags")
-    public ResponseEntity<?> createOrganizationTag(
-            @RequestHeader("Authorization") String token,
-            @RequestBody OrgTagRequest request) {
-        
-        String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
-        validateAdmin(adminUsername);
-        
-        try {
-            OrganizationTag tag = userService.createOrganizationTag(
-                request.tagId(), 
-                request.name(), 
-                request.description(), 
-                request.parentTag(), 
-                adminUsername
-            );
-            return ResponseEntity.ok(Map.of("code", 200, "message", "组织标签创建成功", "data", tag));
-        } catch (CustomException e) {
-            LogUtils.logBusinessError("ADMIN_CREATE_ORG_TAG", adminUsername, "创建组织标签失败: %s", e, e.getMessage());
-            return ResponseEntity.status(e.getStatus()).body(Map.of("code", e.getStatus().value(), "message", e.getMessage()));
-        } catch (Exception e) {
-            LogUtils.logBusinessError("ADMIN_CREATE_ORG_TAG", adminUsername, "创建组织标签异常: %s", e, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "创建组织标签失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 获取所有组织标签
-     */
-    @GetMapping("/org-tags")
-    public ResponseEntity<?> getAllOrganizationTags(@RequestHeader("Authorization") String token) {
-        String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
-        validateAdmin(adminUsername);
-        
-        try {
-            List<OrganizationTag> tags = organizationTagMapper.selectList(null);
-            return ResponseEntity.ok(Map.of("code", 200, "message", "获取组织标签成功", "data", tags));
-        } catch (Exception e) {
-            LogUtils.logBusinessError("ADMIN_GET_ORG_TAGS", adminUsername, "获取组织标签失败", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "获取组织标签失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 为用户分配组织标签
-     */
-    @PutMapping("/users/{userId}/org-tags")
-    public ResponseEntity<?> assignOrgTagsToUser(
-            @RequestHeader("Authorization") String token,
-            @PathVariable Long userId,
-            @RequestBody AssignOrgTagsRequest request) {
-        
-        String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
-        validateAdmin(adminUsername);
-        
-        try {
-            userService.assignOrgTagsToUser(userId, request.orgTags(), adminUsername);
-            return ResponseEntity.ok(Map.of("code", 200, "message", "组织标签分配成功"));
-        } catch (CustomException e) {
-            LogUtils.logBusinessError("ADMIN_ASSIGN_ORG_TAGS", adminUsername, "分配组织标签失败: %s", e, e.getMessage());
-            return ResponseEntity.status(e.getStatus()).body(Map.of("code", e.getStatus().value(), "message", e.getMessage()));
-        } catch (Exception e) {
-            LogUtils.logBusinessError("ADMIN_ASSIGN_ORG_TAGS", adminUsername, "分配组织标签异常: %s", e, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "分配组织标签失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 获取组织标签树结构
-     */
-    @GetMapping("/org-tags/tree")
-    public ResponseEntity<?> getOrganizationTagTree(@RequestHeader("Authorization") String token) {
-        String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
-        validateAdmin(adminUsername);
-        
-        try {
-            List<Map<String, Object>> tagTree = userService.getOrganizationTagTree();
-            return ResponseEntity.ok(Map.of(
-                "code", 200, 
-                "message", "获取组织标签树成功", 
-                "data", tagTree
-            ));
-        } catch (Exception e) {
-            LogUtils.logBusinessError("ADMIN_GET_ORG_TAG_TREE", adminUsername, "获取组织标签树失败", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "获取组织标签树失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 更新组织标签
-     */
-    @PutMapping("/org-tags/{tagId}")
-    public ResponseEntity<?> updateOrganizationTag(
-            @RequestHeader("Authorization") String token,
-            @PathVariable String tagId,
-            @RequestBody OrgTagUpdateRequest request) {
-        
-        String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
-        validateAdmin(adminUsername);
-        
-        try {
-            OrganizationTag updatedTag = userService.updateOrganizationTag(
-                tagId, 
-                request.name(), 
-                request.description(), 
-                request.parentTag(), 
-                adminUsername
-            );
-            return ResponseEntity.ok(Map.of(
-                "code", 200, 
-                "message", "组织标签更新成功", 
-                "data", updatedTag
-            ));
-        } catch (CustomException e) {
-            LogUtils.logBusinessError("ADMIN_UPDATE_ORG_TAG", adminUsername, "更新组织标签失败: %s", e, e.getMessage());
-            return ResponseEntity.status(e.getStatus()).body(Map.of("code", e.getStatus().value(), "message", e.getMessage()));
-        } catch (Exception e) {
-            LogUtils.logBusinessError("ADMIN_UPDATE_ORG_TAG", adminUsername, "更新组织标签异常: %s", e, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "更新组织标签失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 删除组织标签
-     */
-    @DeleteMapping("/org-tags/{tagId}")
-    public ResponseEntity<?> deleteOrganizationTag(
-            @RequestHeader("Authorization") String token,
-            @PathVariable String tagId) {
-        
-        String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
-        validateAdmin(adminUsername);
-        
-        try {
-            userService.deleteOrganizationTag(tagId, adminUsername);
-            return ResponseEntity.ok(Map.of(
-                "code", 200, 
-                "message", "组织标签删除成功"
-            ));
-        } catch (CustomException e) {
-            LogUtils.logBusinessError("ADMIN_DELETE_ORG_TAG", adminUsername, "删除组织标签失败: %s", e, e.getMessage());
-            return ResponseEntity.status(e.getStatus()).body(Map.of("code", e.getStatus().value(), "message", e.getMessage()));
-        } catch (Exception e) {
-            LogUtils.logBusinessError("ADMIN_DELETE_ORG_TAG", adminUsername, "删除组织标签异常: %s", e, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", 500, "message", "删除组织标签失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 获取用户列表
+     * 获取用户列表（仅关键词、状态过滤）
      */
     @GetMapping("/users/list")
     public ResponseEntity<?> getUserList(
             @RequestHeader("Authorization") String token,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String orgTag,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
         String adminUsername = jwtUtils.extractUsernameFromToken(token.replace("Bearer ", ""));
         validateAdmin(adminUsername);
-        
         try {
-            Map<String, Object> usersData = userService.getUserList(keyword, orgTag, status, page, size);
+            Map<String, Object> usersData = userService.getUserList(keyword, status, page, size);
             return ResponseEntity.ok(Map.of(
                 "code", 200, 
                 "message", "获取用户列表成功", 
@@ -626,20 +461,4 @@ public class AdminController {
     }
 }
 
-/**
- * 管理员用户请求体
- */
-record AdminUserRequest(String username, String password) {}
-
-/**
- * 组织标签请求体
- */
-record OrgTagRequest(String tagId, String name, String description, String parentTag) {}
-
-/**
- * 分配组织标签请求体
- */
-record AssignOrgTagsRequest(List<String> orgTags) {}
-
-// 添加组织标签更新请求记录类
-record OrgTagUpdateRequest(String name, String description, String parentTag) {} 
+record AdminUserRequest(String username, String password) {} 

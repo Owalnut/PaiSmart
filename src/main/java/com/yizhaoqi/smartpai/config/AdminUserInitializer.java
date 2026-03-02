@@ -33,12 +33,6 @@ public class AdminUserInitializer implements CommandLineRunner {
     @Value("${admin.password:admin123}")
     private String adminPassword;
 
-    @Value("${admin.primary-org:default}")
-    private String adminPrimaryOrg;
-
-    @Value("${admin.org-tags:default,admin}")
-    private String adminOrgTags;
-
     @Override
     public void run(String... args) throws Exception {
         logger.info("检查管理员账号是否存在: {}", adminUsername);
@@ -55,8 +49,6 @@ public class AdminUserInitializer implements CommandLineRunner {
             adminUser.setUsername(adminUsername);
             adminUser.setPassword(PasswordUtil.encode(adminPassword));
             adminUser.setRole(User.Role.ADMIN);
-            adminUser.setPrimaryOrg(adminPrimaryOrg);
-            adminUser.setOrgTags(adminOrgTags);
             adminUser.setCreatedAt(LocalDateTime.now());
             adminUser.setUpdatedAt(LocalDateTime.now());
 

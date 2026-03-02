@@ -41,8 +41,6 @@ declare namespace Api {
       id: number;
       username: string;
       role: 'USER' | 'ADMIN';
-      orgTags: string[];
-      primaryOrg: string;
     }
   }
 
@@ -87,20 +85,15 @@ declare namespace Api {
     type SearchParams = CommonType.RecordNullable<
       Common.CommonSearchParams & {
         keyword: string;
-        orgTag: string;
         status: number;
       }
     >;
 
     type Item = {
-      userId: string;
+      userId: string | number;
       username: string;
-      email: string;
       status: number;
-      orgTags: Pick<OrgTag.Item, 'tagId' | 'name'>[];
-      primaryOrg: string;
-      createTime: string;
-      lastLoginTime: string;
+      createdAt?: string;
     };
 
     type List = Common.PaginatingQueryRecord<Item>;
@@ -126,8 +119,6 @@ declare namespace Api {
     }
 
     interface Form {
-      orgTag: string | null;
-      orgTagName: string | null;
       isPublic: boolean;
       fileList: import('naive-ui').UploadFileInfo[];
     }
@@ -140,7 +131,6 @@ declare namespace Api {
       totalSize: number;
       fileName: string;
       orgTag: string | null;
-      orgTagName?: string | null;
       isPublic: boolean;
       uploadedChunks: number[];
       progress: number;

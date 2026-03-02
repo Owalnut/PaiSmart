@@ -107,7 +107,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       i18nKey: 'route.org-tag',
       icon: 'solar:tag-line-duotone',
       roles: ['ADMIN'],
-      order: 4
+      order: 4,
+      hideInMenu: true
     }
   },
   {

@@ -1,9 +1,7 @@
 package com.yizhaoqi.smartpai.controller;
 
 import com.yizhaoqi.smartpai.model.FileUpload;
-import com.yizhaoqi.smartpai.model.OrganizationTag;
 import com.yizhaoqi.smartpai.mapper.FileUploadMapper;
-import com.yizhaoqi.smartpai.mapper.OrganizationTagMapper;
 import com.yizhaoqi.smartpai.service.DocumentService;
 import com.yizhaoqi.smartpai.utils.LogUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,13 +32,8 @@ public class DocumentController {
     @Autowired
     private DocumentService documentService;
 
-    /** 按 fileMd5、userId 校验文件归属与权限 */
     @Autowired
     private FileUploadMapper fileUploadMapper;
-
-    /** 按 tagId 查询组织标签（如列表展示） */
-    @Autowired
-    private OrganizationTagMapper organizationTagMapper;
 
     /**
      * 删除文档及其相关数据
@@ -104,22 +97,14 @@ public class DocumentController {
     }
     
     /**
-     * 获取用户可访问的所有文件列表
-     * 
-     * @param userId 当前用户ID
-     * @param orgTags 用户所属组织标签
-     * @return 可访问的文件列表
+     * 获取用户可访问的所有文件列表（个人 + 公开）
      */
     @GetMapping("/accessible")
-    public ResponseEntity<?> getAccessibleFiles(
-            @RequestAttribute("userId") String userId,
-            @RequestAttribute("orgTags") String orgTags) {
-        
+    public ResponseEntity<?> getAccessibleFiles(@RequestAttribute("userId") String userId) {
         LogUtils.PerformanceMonitor monitor = LogUtils.startPerformanceMonitor("GET_ACCESSIBLE_FILES");
         try {
-            LogUtils.logBusiness("GET_ACCESSIBLE_FILES", userId, "接收到获取可访问文件请求: orgTags=%s", orgTags);
-            
-            List<FileUpload> files = documentService.getAccessibleFiles(userId, orgTags);
+            LogUtils.logBusiness("GET_ACCESSIBLE_FILES", userId, "接收到获取可访问文件请求");
+            List<FileUpload> files = documentService.getAccessibleFiles(userId);
             
             LogUtils.logUserOperation(userId, "GET_ACCESSIBLE_FILES", "file_list", "SUCCESS");
             LogUtils.logBusiness("GET_ACCESSIBLE_FILES", userId, "成功获取可访问文件: fileCount=%d", files.size());
@@ -167,11 +152,7 @@ public class DocumentController {
                 dto.put("public", file.isPublic());
                 dto.put("createdAt", file.getCreatedAt());
                 dto.put("mergedAt", file.getMergedAt());
-                
-                // 将orgTag从tagId转换为tagName
-                String orgTagName = getOrgTagName(file.getOrgTag());
-                dto.put("orgTagName", orgTagName);
-                
+                dto.put("visibility", file.isPublic() ? "公开" : "个人");
                 return dto;
             }).collect(Collectors.toList());
             
@@ -196,24 +177,19 @@ public class DocumentController {
     
     /**
      * 根据文件名下载文件
-     * 
+     *
      * @param fileName 文件名
-     * @param userId 当前用户ID  
-     * @param orgTags 用户所属组织标签
+     * @param userId   当前用户ID
      * @return 文件资源或错误响应
      */
     @GetMapping("/download")
     public ResponseEntity<?> downloadFileByName(
             @RequestParam String fileName,
-            @RequestAttribute("userId") String userId,
-            @RequestAttribute("orgTags") String orgTags) {
-        
+            @RequestAttribute("userId") String userId) {
         LogUtils.PerformanceMonitor monitor = LogUtils.startPerformanceMonitor("DOWNLOAD_FILE_BY_NAME");
         try {
             LogUtils.logBusiness("DOWNLOAD_FILE_BY_NAME", userId, "接收到文件下载请求: fileName=%s", fileName);
-            
-            // 查找用户可访问的文件
-            List<FileUpload> accessibleFiles = documentService.getAccessibleFiles(userId, orgTags);
+            List<FileUpload> accessibleFiles = documentService.getAccessibleFiles(userId);
             
             // 根据文件名查找匹配的文件
             Optional<FileUpload> targetFile = accessibleFiles.stream()
@@ -264,31 +240,6 @@ public class DocumentController {
             response.put("code", HttpStatus.INTERNAL_SERVER_ERROR.value());
             response.put("message", "文件下载失败: " + e.getMessage()); 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-    
-    /**
-     * 根据tagId获取tagName
-     *
-     * @param tagId 组织标签ID
-     * @return 组织标签名称，如果找不到则返回原tagId
-     */
-    private String getOrgTagName(String tagId) {
-        if (tagId == null || tagId.isEmpty()) {
-            return null;
-        }
-        
-        try {
-            Optional<OrganizationTag> tagOpt = Optional.ofNullable(organizationTagMapper.selectByTagId(tagId));
-            if (tagOpt.isPresent()) {
-                return tagOpt.get().getName();
-            } else {
-                LogUtils.logBusiness("GET_ORG_TAG_NAME", "system", "找不到组织标签: tagId=%s", tagId);
-                return tagId; // 如果找不到标签名称，返回原tagId
-            }
-        } catch (Exception e) {
-            LogUtils.logBusinessError("GET_ORG_TAG_NAME", "system", "查询组织标签名称失败: tagId=%s", e, tagId);
-            return tagId; // 发生错误时返回原tagId
         }
     }
 } 
